@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f2f2ed;
+  --foreground: #111111;
+
+  /*
+   * Shared with SessionShareCardView.swift (Runexx / Instagram story card).
+   * SwiftUI points map 1:1 to CSS pixels. Keep these two files in sync.
+   *
+   * Source: Desktop/Runect/Runex_v2/Runexx/Runexx/SessionShareCardView..swift
+   */
+  --share-bg: #ADED2B; /* Color(red: 0.68, green: 0.93, blue: 0.17) */
+  --share-fg: #000000;
+  --share-font:
+    -apple-system, BlinkMacSystemFont, system-ui, "SF Pro Display",
+    "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+
+  --share-pad: 64px;
+  --share-wordmark-size: 44px; /* .system(size: 44, weight: .black) */
+  --share-title-size: 58px; /* .system(size: 58, weight: .black) */
+  --share-label-size: 17px; /* .font(.headline) default */
+  --share-stat-size: 32px; /* .system(size: 32, weight: .bold) */
+  --share-date-size: 28px; /* .system(size: 28, weight: .bold) */
+  --share-tagline-size: 30px; /* .system(size: 30, weight: .bold) */
+  --share-date-top: 20px; /* .padding(.top, 20) */
+
+  --share-weight-black: 900; /* SwiftUI .black  */
+  --share-weight-bold: 700; /* SwiftUI .bold   */
+  --share-weight-semibold: 600; /* SwiftUI .headline */
+}
+
+.share-card {
+  background: var(--share-bg);
+  color: var(--share-fg);
+  padding: var(--share-pad);
+  font-family: var(--share-font);
+}
+.share-wordmark {
+  font-size: var(--share-wordmark-size);
+  font-weight: var(--share-weight-black);
+  line-height: 1;
+}
+.share-title {
+  font-size: var(--share-title-size);
+  font-weight: var(--share-weight-black);
+  line-height: 1;
+  text-transform: uppercase;
+}
+.share-label {
+  font-size: var(--share-label-size);
+  font-weight: var(--share-weight-semibold);
+}
+.share-stat {
+  font-size: var(--share-stat-size);
+  font-weight: var(--share-weight-bold);
+}
+.share-stat-upper {
+  text-transform: uppercase;
+}
+.share-date {
+  font-size: var(--share-date-size);
+  font-weight: var(--share-weight-bold);
+  padding-top: var(--share-date-top);
+}
+.share-tagline {
+  font-size: var(--share-tagline-size);
+  font-weight: var(--share-weight-bold);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+button,
+a {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: #d7ff2f;
+  color: #111111;
+}
