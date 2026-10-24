@@ -41,7 +41,13 @@ export default function RouteMap({ route, startLabel = "Start", className = "" }
   }, []);
 
   useEffect(() => {
-    if (!inView || !MAPBOX_TOKEN || !mapRef.current || route.length < 2) return;
+    if (!inView || !mapRef.current || route.length < 2) return;
+    if (!MAPBOX_TOKEN) {
+      console.warn(
+        "[Runex map] No NEXT_PUBLIC_MAPBOX_TOKEN in this build. Add it to .env.local (local) or Vercel → Settings → Environment Variables, then rebuild.",
+      );
+      return;
+    }
 
     let map: MapboxMap | undefined;
     let frame = 0;
@@ -69,7 +75,8 @@ export default function RouteMap({ route, startLabel = "Start", className = "" }
       map.addControl(new mapboxgl.AttributionControl({ compact: true }));
       map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
 
-      map.once("error", () => {
+      map.on("error", (event) => {
+        console.error("[Runex map] Mapbox error:", event.error?.message ?? event);
         if (!map?.loaded()) setMapFailed(true);
       });
 
@@ -114,7 +121,10 @@ export default function RouteMap({ route, startLabel = "Start", className = "" }
         };
         frame = requestAnimationFrame(step);
       });
-    })().catch(() => setMapFailed(true));
+    })().catch((err) => {
+      console.error("[Runex map] Could not start the map:", err);
+      setMapFailed(true);
+    });
 
     return () => {
       cancelled = true;
