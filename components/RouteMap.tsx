@@ -10,13 +10,21 @@ const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 const MAP_STYLE = "mapbox://styles/mazingardy/cmtsj7utr00ms01sq6bs106pv";
 const DRAW_DURATION_MS = 1500;
 
+// Same look as the route in the Runex app.
+const HALO_COLOR = "#C9A214";
+const HALO_EDGE = "#8F7310";
+const LINE_COLOR = "#0B0B0B";
+const RING_COLOR = "#C6E86B";
+
 type Props = {
   route: LngLat[];
   startLabel?: string;
+  /** Host photo for the start marker; a person placeholder is shown without one. */
+  hostAvatarUrl?: string | null;
   className?: string;
 };
 
-export default function RouteMap({ route, startLabel = "Start", className = "" }: Props) {
+export default function RouteMap({ route, startLabel = "Start", hostAvatarUrl = null, className = "" }: Props) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
@@ -41,7 +49,7 @@ export default function RouteMap({ route, startLabel = "Start", className = "" }
   }, []);
 
   useEffect(() => {
-    if (!inView || !mapRef.current || route.length < 2) return;
+    if (!inView || !mapRef.current || route.length < 1) return;
     if (!MAPBOX_TOKEN) {
       console.warn(
         "[Runex map] No NEXT_PUBLIC_MAPBOX_TOKEN in this build. Add it to .env.local (local) or Vercel → Settings → Environment Variables, then rebuild.",
@@ -50,6 +58,7 @@ export default function RouteMap({ route, startLabel = "Start", className = "" }
     }
 
     let map: MapboxMap | undefined;
+    let resizeObserver: ResizeObserver | undefined;
     let frame = 0;
     let cancelled = false;
 
@@ -59,6 +68,7 @@ export default function RouteMap({ route, startLabel = "Start", className = "" }
 
       mapboxgl.accessToken = MAPBOX_TOKEN;
 
+      const hasLine = route.length > 1;
       const bounds = route.reduce(
         (b, point) => b.extend(point),
         new mapboxgl.LngLatBounds(route[0], route[0]),
@@ -67,12 +77,16 @@ export default function RouteMap({ route, startLabel = "Start", className = "" }
       map = new mapboxgl.Map({
         container: mapRef.current,
         style: MAP_STYLE,
-        bounds,
-        fitBoundsOptions: { padding: 36 },
+        // A drawn route: fit it in the card. Only a meeting point: zoom in on it.
+        ...(hasLine ? { bounds, fitBoundsOptions: { padding: 56 } } : { center: route[0], zoom: 15 }),
         cooperativeGestures: true, // two fingers to move the map, so page scrolling never gets stuck
         attributionControl: false,
       });
       map.addControl(new mapboxgl.AttributionControl({ compact: true }));
+
+      // Keep the map filling the card when the page or card changes size.
+      resizeObserver = new ResizeObserver(() => map?.resize());
+      resizeObserver.observe(mapRef.current);
       map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
 
       map.on("error", (event) => {
@@ -83,27 +97,24 @@ export default function RouteMap({ route, startLabel = "Start", className = "" }
       map.on("load", () => {
         if (!map) return;
 
-        map.addSource("route", { type: "geojson", data: lineFeature(route.slice(0, 1)) });
-        map.addLayer({
-          id: "route-casing",
-          type: "line",
-          source: "route",
-          layout: { "line-cap": "round", "line-join": "round" },
-          paint: { "line-color": "#ffffff", "line-width": 9, "line-opacity": 0.9 },
-        });
-        map.addLayer({
-          id: "route-line",
-          type: "line",
-          source: "route",
-          layout: { "line-cap": "round", "line-join": "round" },
-          paint: { "line-color": "#000000", "line-width": 5 },
-        });
+        setMapReady(true);
+        if (hasLine) {
+          map.addSource("route", { type: "geojson", data: lineFeature(route.slice(0, 1)) });
+          const layout = { "line-cap": "round", "line-join": "round" } as const;
+          // Thick gold band with a darker edge, and the black route line on top.
+          map.addLayer({ id: "route-halo-edge", type: "line", source: "route", layout,
+            paint: { "line-color": HALO_EDGE, "line-width": 20, "line-opacity": 0.55 } });
+          map.addLayer({ id: "route-halo", type: "line", source: "route", layout,
+            paint: { "line-color": HALO_COLOR, "line-width": 17 } });
+          map.addLayer({ id: "route-line", type: "line", source: "route", layout,
+            paint: { "line-color": LINE_COLOR, "line-width": 5 } });
+        }
 
-        new mapboxgl.Marker({ element: startMarker(startLabel), anchor: "left", offset: [-9, 0] })
+        // Host photo in a lime ring, sitting on the start of the route.
+        new mapboxgl.Marker({ element: startMarker(startLabel, hostAvatarUrl), anchor: "center" })
           .setLngLat(route[0])
           .addTo(map);
-
-        setMapReady(true);
+        if (!hasLine) return; // only a meeting point, no route to draw
 
         // Draw the route in, unless the viewer prefers reduced motion.
         const source = map.getSource("route") as GeoJSONSource | undefined;
@@ -129,9 +140,10 @@ export default function RouteMap({ route, startLabel = "Start", className = "" }
     return () => {
       cancelled = true;
       cancelAnimationFrame(frame);
+      resizeObserver?.disconnect();
       map?.remove();
     };
-  }, [inView, route, startLabel]);
+  }, [inView, route, startLabel, hostAvatarUrl]);
 
   const showStatic = !mapReady || mapFailed;
 
@@ -145,7 +157,7 @@ export default function RouteMap({ route, startLabel = "Start", className = "" }
         className={`absolute inset-0 transition-opacity duration-500 ${showStatic ? "opacity-100" : "opacity-0"}`}
         aria-hidden={!showStatic}
       >
-        <StaticRoute route={route} startLabel={startLabel} />
+        <StaticRoute route={route} startLabel={startLabel} hostAvatarUrl={hostAvatarUrl} />
         {!MAPBOX_TOKEN && process.env.NODE_ENV !== "production" && (
           <p className="absolute inset-x-4 top-4 rounded-xl bg-white/90 px-3 py-2 text-xs text-black">
             Add NEXT_PUBLIC_MAPBOX_TOKEN to .env.local to show the live map.
@@ -153,10 +165,11 @@ export default function RouteMap({ route, startLabel = "Start", className = "" }
         )}
       </div>
 
-      {/* Live Mapbox map. */}
+      {/* Live Mapbox map. Position is set inline because Mapbox's own CSS sets the map to position: relative. */}
       <div
         ref={mapRef}
-        className={`absolute inset-0 transition-opacity duration-500 ${mapReady && !mapFailed ? "opacity-100" : "opacity-0"}`}
+        className={`transition-opacity duration-500 ${mapReady && !mapFailed ? "opacity-100" : "opacity-0"}`}
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
         role="region"
         aria-label="Interactive map of the run route"
       />
@@ -164,10 +177,18 @@ export default function RouteMap({ route, startLabel = "Start", className = "" }
   );
 }
 
-function StaticRoute({ route, startLabel }: { route: LngLat[]; startLabel: string }) {
+function StaticRoute({
+  route,
+  startLabel,
+  hostAvatarUrl,
+}: {
+  route: LngLat[];
+  startLabel: string;
+  hostAvatarUrl: string | null;
+}) {
   const width = 400;
   const height = 360;
-  const pad = 40;
+  const pad = 48;
   const { points } = projectRoute(route, width, height, pad);
   const d = points.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
   const [sx, sy] = points[0] ?? [0, 0];
@@ -186,12 +207,30 @@ function StaticRoute({ route, startLabel }: { route: LngLat[]; startLabel: strin
         </pattern>
       </defs>
       <rect width={width} height={height} fill="url(#route-grid)" />
-      <path d={d} fill="none" stroke="#ffffff" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round" />
-      <path d={d} fill="none" stroke="#000000" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={sx} cy={sy} r="8" fill="#ADED2B" stroke="#000" strokeWidth="3" />
-      <text x={sx + 14} y={sy + 4} fontSize="12" fontWeight="700" fill="#000">
-        {startLabel}
-      </text>
+      <title>{startLabel}</title>
+      {points.length > 1 && (
+        <>
+          <path d={d} fill="none" stroke={HALO_EDGE} strokeOpacity="0.55" strokeWidth="20" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={d} fill="none" stroke={HALO_COLOR} strokeWidth="17" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={d} fill="none" stroke={LINE_COLOR} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+        </>
+      )}
+      <defs>
+        <clipPath id="start-avatar">
+          <circle cx={sx} cy={sy} r="21" />
+        </clipPath>
+      </defs>
+      <circle cx={sx} cy={sy} r="32" fill={RING_COLOR} opacity="0.45" />
+      <circle cx={sx} cy={sy} r="26" fill={RING_COLOR} />
+      <circle cx={sx} cy={sy} r="21" fill="#8E8E93" />
+      {hostAvatarUrl ? (
+        <image href={hostAvatarUrl} x={sx - 21} y={sy - 21} width="42" height="42" clipPath="url(#start-avatar)" preserveAspectRatio="xMidYMid slice" />
+      ) : (
+        <g clipPath="url(#start-avatar)" fill="#000">
+          <circle cx={sx} cy={sy - 6} r="8" />
+          <ellipse cx={sx} cy={sy + 16} rx="15" ry="11" />
+        </g>
+      )}
     </svg>
   );
 }
@@ -258,16 +297,26 @@ function projectRoute(route: LngLat[], width: number, height: number, pad: numbe
   };
 }
 
-function startMarker(label: string) {
+function startMarker(label: string, avatarUrl: string | null) {
   const el = document.createElement("div");
-  el.style.cssText =
-    "display:flex;align-items:center;gap:6px;pointer-events:none;font:700 12px -apple-system,system-ui,sans-serif;color:#000";
-  const dot = document.createElement("span");
-  dot.style.cssText =
-    "width:18px;height:18px;border-radius:50%;background:#ADED2B;border:3px solid #000;box-sizing:border-box";
-  const text = document.createElement("span");
-  text.textContent = label;
-  text.style.cssText = "background:#fff;padding:3px 8px;border-radius:999px;box-shadow:0 1px 3px rgba(0,0,0,.2)";
-  el.append(dot, text);
+  el.setAttribute("role", "img");
+  el.setAttribute("aria-label", label);
+  el.style.cssText = [
+    "width:56px;height:56px;border-radius:50%;box-sizing:border-box;pointer-events:none",
+    `border:5px solid ${RING_COLOR}`,
+    `box-shadow:0 0 0 6px ${RING_COLOR}73,0 2px 8px rgba(0,0,0,.25)`,
+    "background:#8E8E93;overflow:hidden;display:grid;place-items:center",
+  ].join(";");
+  if (avatarUrl) {
+    const img = document.createElement("img");
+    img.src = avatarUrl;
+    img.alt = "";
+    img.style.cssText = "width:100%;height:100%;object-fit:cover";
+    el.append(img);
+  } else {
+    // Person placeholder, like the app shows when the host has no photo.
+    el.innerHTML =
+      '<svg width="46" height="46" viewBox="0 0 46 46" aria-hidden="true"><circle cx="23" cy="17" r="8" fill="#000"/><ellipse cx="23" cy="40" rx="15" ry="11" fill="#000"/></svg>';
+  }
   return el;
 }

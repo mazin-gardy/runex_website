@@ -28,16 +28,17 @@ export default async function Image({
   ]);
 
   // Same data as the session page, so the preview always matches it.
-  const session = await getSession(id);
-  const words = session.title.toUpperCase().split(/\s+/);
+  // If the run can't be loaded, still show a generic Runex card rather than a broken preview.
+  const session = await getSession(id).catch(() => null);
+  const words = (session?.title ?? "Group run").toUpperCase().split(/\s+/);
   const half = Math.ceil(words.length / 2);
-  const date = session.dateLabel.toUpperCase();
-  const startTime = session.startTime.toUpperCase();
+  const date = (session?.dateLabel ?? "").toUpperCase();
+  const startTime = (session?.startTime ?? "").toUpperCase();
   const titleLine1 = words.slice(0, half).join(" ");
   const titleLine2 = words.slice(half).join(" ");
-  const distance = String(session.distanceKm);
-  const pace = session.pace.toUpperCase();
-  const host = session.host.name.toUpperCase();
+  const distance = session?.distanceKm != null ? String(session.distanceKm) : "–";
+  const pace = (session?.pace ?? "–").toUpperCase();
+  const host = (session?.host.name ?? "Runex").toUpperCase();
 
   return new ImageResponse(
     (
@@ -66,7 +67,7 @@ export default async function Image({
           }}
         >
           <span style={{ fontWeight: 800 }}>RUNEX</span>
-          <span>Session · {id}</span>
+          <span>{session ? `Group run · ${session.going} going` : "Group run"}</span>
         </div>
 
         {/* DATE */}

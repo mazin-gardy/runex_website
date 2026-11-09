@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
+import UpdatesForm from "@/components/UpdatesForm";
 
 export default function Home() {
   const features = [
@@ -92,9 +93,12 @@ export default function Home() {
               </p>
 
               <div className="flex gap-3 mt-7">
-                <button className="bg-black text-white rounded-full px-6 py-3 text-sm transition-transform duration-300 hover:scale-105">
+                <a
+                  href="#join"
+                  className="bg-black text-white rounded-full px-6 py-3 text-sm transition-transform duration-300 hover:scale-105"
+                >
                   Join a run
-                </button>
+                </a>
 
                 <a
                   href="#discover"
@@ -324,9 +328,7 @@ export default function Home() {
             Find your next session. Meet your next training partner.
           </p>
 
-          <button className="bg-black text-white rounded-full px-7 py-4 text-sm transition-transform duration-300 hover:scale-105">
-            Explore Runex ↗
-          </button>
+          <UpdatesForm />
         </div>
       </section>
     </main>
