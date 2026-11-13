@@ -51,3 +51,18 @@ export async function supabaseInsert(table: string, row: Record<string, unknown>
     throw new SupabaseError(`Supabase ${table} insert failed (${res.status}): ${await res.text()}`, res.status);
   }
 }
+
+/** Call a database function, e.g. supabaseRpc("host_get_requests", { p_session_id, p_host_key }). */
+export async function supabaseRpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
+  if (!supabaseConfigured) throw new Error("Supabase isn't set up: add SUPABASE_URL and SUPABASE_ANON_KEY.");
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify(args),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new SupabaseError(`Supabase ${fn} failed (${res.status}): ${await res.text()}`, res.status);
+  }
+  return res.json();
+}
