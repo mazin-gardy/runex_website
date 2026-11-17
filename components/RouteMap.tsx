@@ -222,7 +222,7 @@ function StaticRoute({
       </defs>
       <circle cx={sx} cy={sy} r="32" fill={RING_COLOR} opacity="0.45" />
       <circle cx={sx} cy={sy} r="26" fill={RING_COLOR} />
-      <circle cx={sx} cy={sy} r="21" fill="#8E8E93" />
+      <circle cx={sx} cy={sy} r="21" fill={hostAvatarUrl ? "#fff" : "#8E8E93"} />
       {hostAvatarUrl ? (
         <image href={hostAvatarUrl} x={sx - 21} y={sy - 21} width="42" height="42" clipPath="url(#start-avatar)" preserveAspectRatio="xMidYMid slice" />
       ) : (
@@ -305,7 +305,7 @@ function startMarker(label: string, avatarUrl: string | null) {
     "width:56px;height:56px;border-radius:50%;box-sizing:border-box;pointer-events:none",
     `border:5px solid ${RING_COLOR}`,
     `box-shadow:0 0 0 6px ${RING_COLOR}73,0 2px 8px rgba(0,0,0,.25)`,
-    "background:#8E8E93;overflow:hidden;display:grid;place-items:center",
+    `background:${avatarUrl ? "#fff" : "#8E8E93"};overflow:hidden;display:grid;place-items:center`,
   ].join(";");
   if (avatarUrl) {
     const img = document.createElement("img");

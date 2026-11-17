@@ -55,7 +55,7 @@ export default async function RunSessionPage({ params }: Props) {
         </h1>
 
         {session.route.length > 0 && (
-          <RouteMap route={session.route} startLabel={session.startLabel} className="mt-8 aspect-[10/9] w-full" />
+          <RouteMap route={session.route} startLabel={session.startLabel} hostAvatarUrl={session.host.avatarUrl} className="mt-8 aspect-[10/9] w-full" />
         )}
 
         <dl className="mt-8 grid grid-cols-3 gap-3">

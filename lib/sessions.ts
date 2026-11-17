@@ -19,7 +19,7 @@ export type RunSession = {
   vibe: string | null;
   description: string | null;
   locationName: string | null;
-  host: { name: string; initials: string };
+  host: { name: string; initials: string; avatarUrl: string | null };
   going: number; // approved
   pending: number; // waiting for the host to approve
   maxCapacity: number | null;
@@ -53,13 +53,15 @@ type SessionRow = {
   max_capacity: number | null;
   current_count: number | null;
   route: unknown;
+  logo_url: string | null;
+  host_avatar_url: string | null;
 };
 
 type MemberRow = { name: string | null; member_avatar_url: string | null; status: string | null };
 
 // Only public fields. host_contact, member contacts and device ids are never loaded here.
 const SESSION_FIELDS =
-  "id,title,sport_type,location_name,latitude,longitude,start_time,description,host_name,vibe,date,time,distance_km,pace,max_capacity,current_count,route";
+  "id,title,sport_type,location_name,latitude,longitude,start_time,description,host_name,vibe,date,time,distance_km,pace,max_capacity,current_count,route,logo_url,host_avatar_url";
 
 export async function getSession(id: string): Promise<RunSession | null> {
   if (!UUID_RE.test(id) || !supabaseConfigured) return { ...DEMO_SESSION, id };
@@ -103,7 +105,8 @@ export async function getSession(id: string): Promise<RunSession | null> {
     vibe: row.vibe?.trim() || null,
     description: row.description?.trim() || null,
     locationName: row.location_name?.trim() || null,
-    host: { name: hostName, initials: initials(hostName) },
+    // The club logo if there is one, otherwise the host's photo. Only https links or files in public/.
+    host: { name: hostName, initials: initials(hostName), avatarUrl: safeImageUrl(row.logo_url) ?? safeImageUrl(row.host_avatar_url) },
     going,
     pending,
     maxCapacity: row.max_capacity && row.max_capacity > 0 ? row.max_capacity : null,
@@ -111,6 +114,18 @@ export async function getSession(id: string): Promise<RunSession | null> {
     startLabel: row.location_name ? `Start · ${row.location_name}` : "Start",
     route: route.length ? route : meetingPoint,
   };
+}
+
+/** An image link that's safe to show: https://… or a file in public/ (/hosts/…). */
+function safeImageUrl(value: string | null): string | null {
+  const url = value?.trim();
+  if (!url) return null;
+  if (/^\/[a-z0-9/_.-]+$/i.test(url) && !url.includes("..")) return url;
+  try {
+    return new URL(url).protocol === "https:" ? url : null;
+  } catch {
+    return null;
+  }
 }
 
 // --- formatting --------------------------------------------------------------
@@ -258,7 +273,7 @@ const DEMO_SESSION: RunSession = {
   vibe: null,
   description: null,
   locationName: "Tan Track",
-  host: { name: "Mira", initials: "M" },
+  host: { name: "Mira", initials: "M", avatarUrl: null },
   going: DEMO_MEMBERS.length,
   pending: 2,
   maxCapacity: 12,
