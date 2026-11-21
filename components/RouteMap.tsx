@@ -108,6 +108,25 @@ export default function RouteMap({ route, startLabel = "Start", hostAvatarUrl = 
             paint: { "line-color": HALO_COLOR, "line-width": 17 } });
           map.addLayer({ id: "route-line", type: "line", source: "route", layout,
             paint: { "line-color": LINE_COLOR, "line-width": 5 } });
+          // White chevrons along the line, pointing the way to run.
+          const arrow = arrowImage();
+          if (arrow) {
+            map.addImage("route-arrow", arrow, { pixelRatio: 2 });
+            map.addLayer({
+              id: "route-arrows",
+              type: "symbol",
+              source: "route",
+              layout: {
+                "symbol-placement": "line",
+                "symbol-spacing": 70,
+                "icon-image": "route-arrow",
+                "icon-allow-overlap": true,
+                "icon-ignore-placement": true,
+                "icon-rotation-alignment": "map",
+                "icon-keep-upright": false,
+              },
+            });
+          }
         }
 
         // Host photo in a lime ring, sitting on the start of the route.
@@ -213,6 +232,12 @@ function StaticRoute({
           <path d={d} fill="none" stroke={HALO_EDGE} strokeOpacity="0.55" strokeWidth="20" strokeLinecap="round" strokeLinejoin="round" />
           <path d={d} fill="none" stroke={HALO_COLOR} strokeWidth="17" strokeLinecap="round" strokeLinejoin="round" />
           <path d={d} fill="none" stroke={LINE_COLOR} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+          {arrowsAlong(points, 46).map(([x, y, angle], i) => (
+            <g key={i} transform={`translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${angle.toFixed(1)})`}>
+              <path d={CHEVRON} fill="none" stroke={LINE_COLOR} strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+              <path d={CHEVRON} fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+            </g>
+          ))}
         </>
       )}
       <defs>
@@ -236,6 +261,54 @@ function StaticRoute({
 }
 
 // --- helpers ---------------------------------------------------------------
+
+/** A ">" chevron centred on 0,0, pointing right (the direction of travel). */
+const CHEVRON = "M -3 -5 L 3 0 L -3 5";
+
+/** The chevron as an image for Mapbox: white with a black outline, drawn at 2x for sharp screens. */
+function arrowImage(): ImageData | null {
+  const size = 40;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  const draw = () => {
+    ctx.beginPath();
+    ctx.moveTo(14, 8);
+    ctx.lineTo(26, 20);
+    ctx.lineTo(14, 32);
+    ctx.stroke();
+  };
+  ctx.strokeStyle = LINE_COLOR;
+  ctx.lineWidth = 10;
+  draw();
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 5;
+  draw();
+  return ctx.getImageData(0, 0, size, size);
+}
+
+/** Points every `spacing` px along a drawn route, with the direction of travel in degrees. */
+function arrowsAlong(points: (readonly [number, number])[], spacing: number) {
+  const out: [number, number, number][] = [];
+  let next = spacing / 2;
+  let travelled = 0;
+  for (let i = 1; i < points.length; i++) {
+    const [x1, y1] = points[i - 1];
+    const [x2, y2] = points[i];
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    while (len > 0 && next <= travelled + len) {
+      const f = (next - travelled) / len;
+      out.push([x1 + (x2 - x1) * f, y1 + (y2 - y1) * f, (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI]);
+      next += spacing;
+    }
+    travelled += len;
+  }
+  return out;
+}
 
 type LineFeature = {
   type: "Feature";
